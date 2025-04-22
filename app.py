@@ -96,10 +96,10 @@ def check_unseen_emails():
             date = "03/05/2025"
             address = "Surat"
 
-            create_excel_file(filename, da['RFQ_Details'], customer_name, date, address)
+            create_excel_file(filename, da[0]['RFQ_Details'], customer_name, date, address)
             send_email_with_attachment(
                 subject=subject,
-                body="Attached is the Excel file containing the product data.",
+                body=da[0]['email_body'],
                 sender_email=EMAIL,
                 sender_password=PASSWORD,
                 receiver_email=from_,
