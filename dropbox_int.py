@@ -10,20 +10,42 @@ import os
 load_dotenv()
 
 
-DROPBOX_ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
+# DROPBOX_ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
 
 
-def connect_to_dropbox(token: str):
+from dropbox.oauth import DropboxOAuth2FlowNoRedirect
+from dropbox import Dropbox, DropboxOAuth2Flow
+import requests
+
+DROPBOX_CLIENT_ID = os.getenv("DROPBOX_CLIENT_ID")
+DROPBOX_CLIENT_SECRET = os.getenv("DROPBOX_CLIENT_SECRET")
+DROPBOX_REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN")
+
+def get_fresh_dropbox_token():
+    url = "https://api.dropbox.com/oauth2/token"
+    data = {
+        "grant_type": "refresh_token",
+        "refresh_token": DROPBOX_REFRESH_TOKEN,
+        "client_id": DROPBOX_CLIENT_ID,
+        "client_secret": DROPBOX_CLIENT_SECRET
+    }
+
+    response = requests.post(url, data=data)
+    response.raise_for_status()
+    access_token = response.json()["access_token"]
+    return access_token
+
+def connect_to_dropbox():
     try:
-        dbx = dropbox.Dropbox(token)
+        access_token = get_fresh_dropbox_token()
+        dbx = Dropbox(access_token)
         dbx.users_get_current_account()
-        print("✅ Connected to Dropbox.")
-        logs.insert_one({"timestamp": datetime.utcnow(),"content": f"✅ Connected to Dropbox."})
+        logs.insert_one({"timestamp": datetime.utcnow(), "content": "✅ Connected to Dropbox with refreshed token."})
         return dbx
     except AuthError as err:
-        print(f"❌ Authentication error: {err}")
-        logs.insert_one({"timestamp": datetime.utcnow(),"content": f"❌ Authentication error: {err}"})
+        logs.insert_one({"timestamp": datetime.utcnow(), "content": f"❌ Dropbox auth error: {err}"})
         raise
+
 
 def load_file_into_memory(dbx, file_path: str):
     try:
@@ -54,8 +76,9 @@ def list_files(dbx, folder_path: str = ""):
         logs.insert_one({"timestamp": datetime.utcnow(),"content": f"❌ API error: {err}"})
         raise
 
+
 def dropbox_connector():
-    dbx = connect_to_dropbox(DROPBOX_ACCESS_TOKEN)
+    dbx = connect_to_dropbox()
     folder_path = "/Lyzr test/penn stainless"
 
     files = list_files(dbx, folder_path)
